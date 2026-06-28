@@ -59,6 +59,34 @@ func TestToProtoEmptyIsNonNil(t *testing.T) {
 	}
 }
 
+func TestMerge(t *testing.T) {
+	base := map[string]string{"a": "1", "b": "2"}
+	got := tags.Merge(base, []*typev1.Tag{{Key: "b", Value: "two"}, {Key: "c", Value: "3"}})
+	if got["a"] != "1" || got["b"] != "two" || got["c"] != "3" {
+		t.Fatalf("Merge = %v, want {a:1 b:two c:3} (updates win)", got)
+	}
+	if base["b"] != "2" {
+		t.Fatal("Merge mutated base")
+	}
+}
+
+func TestMergeNilBase(t *testing.T) {
+	got := tags.Merge(nil, []*typev1.Tag{{Key: "a", Value: "1"}})
+	if got == nil || got["a"] != "1" {
+		t.Fatalf("Merge(nil,...) = %v, want non-nil {a:1}", got)
+	}
+}
+
+func TestMergeNilBaseNoUpdates(t *testing.T) {
+	got := tags.Merge(nil, nil)
+	if got == nil {
+		t.Fatal("Merge(nil,nil) = nil, want non-nil empty map (contract is always non-nil)")
+	}
+	if len(got) != 0 {
+		t.Fatalf("Merge(nil,nil) = %v, want empty", got)
+	}
+}
+
 func TestParse(t *testing.T) {
 	got, err := tags.Parse([]string{"a=1", "b=2"})
 	if err != nil {

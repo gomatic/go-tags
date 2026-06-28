@@ -46,6 +46,21 @@ func ToProto(m map[string]string) []*typev1.Tag {
 	return out
 }
 
+// Merge returns base with updates applied on top (on a key collision the update
+// wins), as an independent non-nil map; base is never modified. It is the
+// proto-coupled combine that stdlib maps.Copy cannot express directly, since the
+// updates arrive as a Tag list and base may be nil.
+func Merge(base map[string]string, updates []*typev1.Tag) map[string]string {
+	out := maps.Clone(base)
+	if out == nil {
+		out = make(map[string]string, len(updates))
+	}
+	for _, t := range updates {
+		out[t.GetKey()] = t.GetValue()
+	}
+	return out
+}
+
 // Parse turns "key=value" arguments into a map; on duplicate keys the later
 // entry wins. ErrInvalidPair (wrapping the offending argument) is returned for
 // an argument missing "=" or with an empty key. The result is non-nil even when
