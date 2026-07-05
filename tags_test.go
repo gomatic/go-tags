@@ -4,27 +4,32 @@ import (
 	"errors"
 	"testing"
 
-	typev1 "github.com/skykernel/api/src/proto/skykernel/type/v1"
-
 	"github.com/gomatic/go-tags"
 )
 
+// pair is a minimal Pair implementation standing in for any generated message
+// exposing GetKey/GetValue.
+type pair struct{ key, value string }
+
+func (p pair) GetKey() string   { return p.key }
+func (p pair) GetValue() string { return p.value }
+
 func TestToMap(t *testing.T) {
-	got := tags.ToMap([]*typev1.Tag{{Key: "a", Value: "1"}, {Key: "b", Value: "2"}})
+	got := tags.ToMap([]pair{{"a", "1"}, {"b", "2"}})
 	if len(got) != 2 || got["a"] != "1" || got["b"] != "2" {
 		t.Fatalf("ToMap = %v, want {a:1 b:2}", got)
 	}
 }
 
 func TestToMapDuplicateLaterWins(t *testing.T) {
-	got := tags.ToMap([]*typev1.Tag{{Key: "k", Value: "first"}, {Key: "k", Value: "last"}})
+	got := tags.ToMap([]pair{{"k", "first"}, {"k", "last"}})
 	if got["k"] != "last" {
 		t.Fatalf("ToMap duplicate = %q, want %q", got["k"], "last")
 	}
 }
 
 func TestToMapEmptyIsNonNil(t *testing.T) {
-	got := tags.ToMap(nil)
+	got := tags.ToMap[pair](nil)
 	if got == nil {
 		t.Fatal("ToMap(nil) = nil, want non-nil empty map")
 	}
@@ -33,35 +38,37 @@ func TestToMapEmptyIsNonNil(t *testing.T) {
 	}
 }
 
-func TestToProtoSorted(t *testing.T) {
-	got := tags.ToProto(map[string]string{"b": "2", "a": "1", "c": "3"})
+func TestFromMapSorted(t *testing.T) {
+	got := tags.FromMap(map[string]string{"b": "2", "a": "1", "c": "3"}, func(key, value string) pair {
+		return pair{key, value}
+	})
 	want := []string{"a", "b", "c"}
 	if len(got) != 3 {
-		t.Fatalf("ToProto len = %d, want 3", len(got))
+		t.Fatalf("FromMap len = %d, want 3", len(got))
 	}
 	for i, k := range want {
 		if got[i].GetKey() != k {
-			t.Fatalf("ToProto[%d].Key = %q, want %q (not sorted)", i, got[i].GetKey(), k)
+			t.Fatalf("FromMap[%d].Key = %q, want %q (not sorted)", i, got[i].GetKey(), k)
 		}
 	}
 	if got[0].GetValue() != "1" {
-		t.Fatalf("ToProto[0].Value = %q, want %q", got[0].GetValue(), "1")
+		t.Fatalf("FromMap[0].Value = %q, want %q", got[0].GetValue(), "1")
 	}
 }
 
-func TestToProtoEmptyIsNonNil(t *testing.T) {
-	got := tags.ToProto(nil)
+func TestFromMapEmptyIsNonNil(t *testing.T) {
+	got := tags.FromMap(nil, func(key, value string) pair { return pair{key, value} })
 	if got == nil {
-		t.Fatal("ToProto(nil) = nil, want non-nil empty slice")
+		t.Fatal("FromMap(nil) = nil, want non-nil empty slice")
 	}
 	if len(got) != 0 {
-		t.Fatalf("ToProto(nil) = %v, want empty", got)
+		t.Fatalf("FromMap(nil) = %v, want empty", got)
 	}
 }
 
 func TestMerge(t *testing.T) {
 	base := map[string]string{"a": "1", "b": "2"}
-	got := tags.Merge(base, []*typev1.Tag{{Key: "b", Value: "two"}, {Key: "c", Value: "3"}})
+	got := tags.Merge(base, []pair{{"b", "two"}, {"c", "3"}})
 	if got["a"] != "1" || got["b"] != "two" || got["c"] != "3" {
 		t.Fatalf("Merge = %v, want {a:1 b:two c:3} (updates win)", got)
 	}
@@ -71,14 +78,14 @@ func TestMerge(t *testing.T) {
 }
 
 func TestMergeNilBase(t *testing.T) {
-	got := tags.Merge(nil, []*typev1.Tag{{Key: "a", Value: "1"}})
+	got := tags.Merge(nil, []pair{{"a", "1"}})
 	if got == nil || got["a"] != "1" {
 		t.Fatalf("Merge(nil,...) = %v, want non-nil {a:1}", got)
 	}
 }
 
 func TestMergeNilBaseNoUpdates(t *testing.T) {
-	got := tags.Merge(nil, nil)
+	got := tags.Merge[pair](nil, nil)
 	if got == nil {
 		t.Fatal("Merge(nil,nil) = nil, want non-nil empty map (contract is always non-nil)")
 	}

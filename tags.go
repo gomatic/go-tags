@@ -1,9 +1,9 @@
-// Package tags converts between key=value arguments, string maps, and the
-// skykernel API's repeated Tag lists — the small conversion that every tool and
-// service speaking the skykernel API would otherwise reimplement. Pure map
-// operations (clone, merge, key removal) are intentionally left to the standard
-// library's maps and slices packages; this package owns only the proto-coupled
-// conversions those packages cannot express.
+// Package tags converts between key=value arguments, string maps, and lists of
+// key/value pair values — generically, for any type exposing GetKey and
+// GetValue methods (a generated protobuf tag message being the motivating
+// case). Pure map operations (clone, merge, key removal) are intentionally left
+// to the standard library's maps and slices packages; this package owns only
+// the pair-list conversions those packages cannot express.
 package tags
 
 import (
@@ -13,44 +13,52 @@ import (
 	"strings"
 
 	errs "github.com/gomatic/go-error"
-	typev1 "github.com/skykernel/api/src/proto/skykernel/type/v1"
 )
 
 // ErrInvalidPair is returned by Parse for an argument that is not "key=value"
 // (missing "=" or with an empty key).
 const ErrInvalidPair errs.Const = "tags: argument is not key=value"
 
-// ToMap collapses a Tag list into a key/value map; on duplicate keys the later
-// entry wins. The result is non-nil even when tags is empty.
-func ToMap(tags []*typev1.Tag) map[string]string {
-	out := make(map[string]string, len(tags))
-	for _, t := range tags {
-		out[t.GetKey()] = t.GetValue()
+// Pair is any type that carries a key/value pair through GetKey and GetValue —
+// the accessor shape generated protobuf messages share.
+type Pair interface {
+	GetKey() string
+	GetValue() string
+}
+
+// ToMap collapses a pair list into a key/value map; on duplicate keys the later
+// entry wins. The result is non-nil even when pairs is empty.
+func ToMap[T Pair](pairs []T) map[string]string {
+	out := make(map[string]string, len(pairs))
+	for _, p := range pairs {
+		out[p.GetKey()] = p.GetValue()
 	}
 	return out
 }
 
-// ToProto renders a map as a Tag list ordered by key, so equal maps always
-// produce an identical list (deterministic output).
-func ToProto(m map[string]string) []*typev1.Tag {
-	out := make([]*typev1.Tag, 0, len(m))
+// FromMap renders a map as a pair list ordered by key, so equal maps always
+// produce an identical list (deterministic output). Building the pair is
+// delegated to pair, because a method constraint can read a value but cannot
+// construct one.
+func FromMap[T any](m map[string]string, pair func(key, value string) T) []T {
+	out := make([]T, 0, len(m))
 	for _, key := range slices.Sorted(maps.Keys(m)) {
-		out = append(out, &typev1.Tag{Key: key, Value: m[key]})
+		out = append(out, pair(key, m[key]))
 	}
 	return out
 }
 
 // Merge returns base with updates applied on top (on a key collision the update
 // wins), as an independent non-nil map; base is never modified. It is the
-// proto-coupled combine that stdlib maps.Copy cannot express directly, since the
-// updates arrive as a Tag list and base may be nil.
-func Merge(base map[string]string, updates []*typev1.Tag) map[string]string {
+// pair-coupled combine that stdlib maps.Copy cannot express directly, since the
+// updates arrive as a pair list and base may be nil.
+func Merge[T Pair](base map[string]string, updates []T) map[string]string {
 	out := maps.Clone(base)
 	if out == nil {
 		out = make(map[string]string, len(updates))
 	}
-	for _, t := range updates {
-		out[t.GetKey()] = t.GetValue()
+	for _, u := range updates {
+		out[u.GetKey()] = u.GetValue()
 	}
 	return out
 }
