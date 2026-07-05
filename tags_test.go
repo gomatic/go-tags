@@ -6,7 +6,7 @@ import (
 
 	typev1 "github.com/skykernel/api/src/proto/skykernel/type/v1"
 
-	"github.com/skykernel/go-tags"
+	"github.com/gomatic/go-tags"
 )
 
 func TestToMap(t *testing.T) {
@@ -154,11 +154,5 @@ func TestParseEmptyKey(t *testing.T) {
 	}
 	if got != nil {
 		t.Fatalf("Parse = %v, want nil on error", got)
-	}
-}
-
-func TestErrorString(t *testing.T) {
-	if tags.ErrInvalidPair.Error() != string(tags.ErrInvalidPair) {
-		t.Fatal("Error() does not return the underlying string")
 	}
 }

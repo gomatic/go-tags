@@ -12,19 +12,13 @@ import (
 	"slices"
 	"strings"
 
+	errs "github.com/gomatic/go-error"
 	typev1 "github.com/skykernel/api/src/proto/skykernel/type/v1"
 )
 
-// Error is the sentinel error type for the package; every error value is a
-// constant of this type, matchable with errors.Is.
-type Error string
-
-// Error returns the underlying message.
-func (e Error) Error() string { return string(e) }
-
 // ErrInvalidPair is returned by Parse for an argument that is not "key=value"
 // (missing "=" or with an empty key).
-const ErrInvalidPair Error = "tags: argument is not key=value"
+const ErrInvalidPair errs.Const = "tags: argument is not key=value"
 
 // ToMap collapses a Tag list into a key/value map; on duplicate keys the later
 // entry wins. The result is non-nil even when tags is empty.
