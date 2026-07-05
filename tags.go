@@ -7,9 +7,9 @@
 package tags
 
 import (
-	"fmt"
 	"maps"
 	"slices"
+	"strconv"
 	"strings"
 
 	errs "github.com/gomatic/go-error"
@@ -72,7 +72,7 @@ func Parse(args []string) (map[string]string, error) {
 	for _, arg := range args {
 		key, value, ok := strings.Cut(arg, "=")
 		if !ok || key == "" {
-			return nil, fmt.Errorf("%w: %q", ErrInvalidPair, arg)
+			return nil, ErrInvalidPair.With(nil, strconv.Quote(arg))
 		}
 		out[key] = value
 	}
